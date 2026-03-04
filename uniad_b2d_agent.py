@@ -360,17 +360,24 @@ class UniadAgent:
         # TODO
         vts_control = VehicleControl()
 
+        #import time
+        #current_ts = int(time.time() * 1000)
+        #vts_control.header.send_ts = current_ts
+        #vts_control.header.seq_no = self.step
+
         # 1. 驾驶模式
         vts_control.driving_control.driving_Mode = 2  
         # 2. 挡位（1 = Drive）
+        vts_control.driving_control.gear_control.gear_mode = 0
         vts_control.driving_control.gear_control.target_gear_position = 1
         # 3. 油门 / 刹车踏板
-        vts_control.driving_control.target_accelerator_pedal_position = float(throttle)
-        vts_control.brake_control.target_brake_pedal_position = float(brake)
-        # 4. 转向角
-        vts_control.steering_control.target_steering_wheel_angle = float(steer * 60.0)
-        vts_control.acceleration = self.pid_metadata['delta'] / 0.1
+        #vts_control.driving_control.target_accelerator_pedal_position = float(throttle)
+        #vts_control.brake_control.target_brake_pedal_position = float(brake)
+        # 4. 加速度/速度
+        vts_control.acceleration = float(self.pid_metadata['delta'] / 0.1)
         vts_control.speed = float(self.pid_metadata['desired_speed'])
+        # 5. 转向角
+        vts_control.steering_control.target_steering_wheel_angle = float(steer * 100.0) 
 
         self.pid_metadata['steer'] = steer
         self.pid_metadata['throttle'] = throttle

@@ -9,8 +9,8 @@ import warnings
 import libMulticastNetwork
 import numpy as np
 import vts_map
-from chassis.proto.chassis_enums_pb2 import VEHICLE_CONTROL
-from chassis.proto.chassis_messages_pb2 import VehicleControl
+from chassis.proto.chassis_enums_pb2 import VEHICLE_CONTROL, VEHICLE_FEEDBACK
+from chassis.proto.chassis_messages_pb2 import VehicleControl, VehicleFeedback
 from get_ip import get_ip_address
 from main.proto.enums_pb2 import (
     MT_ACTOR_PREPARE,
@@ -126,17 +126,30 @@ def process_notify():
 
 
 def send_control_cmd(cmd: VehicleControl):
-    logger.info(
-        "control cmd: acc {}, speed {}, steer {}".format(
-            cmd.acceleration, cmd.speed, cmd.steering_control.target_steering_wheel_angle
-        )
-    )
     data = cmd.SerializeToString()
     length = len(data)
     ret = cmd_channel.put(VEHICLE_CONTROL, length, data)
-    if ret != 0:
-        logger.error("send cmd error")
+    if ret == 0:
+        logger.debug(
+            "[PUT] Channel: {} | Send VEHICLE_CONTROL SUCCESS | ret: {} | length: {} bytes | acc: {:.2f}, speed: {:.2f}, steer: {:.2f}".format(
+                cmd_channel.name(), ret, length, cmd.acceleration, cmd.speed, cmd.steering_control.target_steering_wheel_angle
+            )
+        )
+    else:
+        logger.error(
+            "[PUT] Channel: {} | Send VEHICLE_CONTROL FAILED | ret: {}".format(
+                cmd_channel.name(), ret
+            )
+        )
 
+def get_vehicle_feedback():
+    for _ in range(100):  
+        ret, msg = cmd_channel.get()
+        if msg is None or ret < 0:
+            break
+
+        if msg.type() == VEHICLE_FEEDBACK:
+            _ = libMulticastNetwork.getMessageData(msg)
 
 def get_vehicle_pose():
     ins = ins_channel.get_ins()
@@ -208,6 +221,10 @@ def main():
         if tick_data is not None:
             cmd = agent.run_step(tick_data)
             send_control_cmd(cmd)
+        else:
+            logger.error("[ERROR] tick_data is None! ")
+            time.sleep(0.1)
+        get_vehicle_feedback()
 
 
 if __name__ == "__main__":
